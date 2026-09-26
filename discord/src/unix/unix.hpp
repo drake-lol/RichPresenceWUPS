@@ -68,7 +68,7 @@ json getImageKeys(std::string repo) {
 }
 
 // Main loop
-void gameLoop(std::string repo, uint16_t port) {
+void gameLoop(std::string repo, json images, uint16_t port) {
 	std::string msg;
 	int sock;
 	struct sockaddr_in addr;
@@ -94,7 +94,6 @@ void gameLoop(std::string repo, uint16_t port) {
 
     auto& rpc = discord::RPCManager::get();
 
-    json images = getImageKeys(repo);
     char buffer[1024];
 
     do {
@@ -107,7 +106,7 @@ void gameLoop(std::string repo, uint16_t port) {
 			msg = buffer;
 			
 			// Attempt to set Rich Presence
-			if (parseJsonAndUpdate(msg, images, repo, adjustEpochToUtc) < 0) {
+			if (parseJsonAndUpdate(msg, images, repo, adjustEpochToUtc, std::string("UDP from ") + inet_ntoa(addr.sin_addr)) < 0) {
 				fmt::println("Failed to update Rich Presence");
 			}
 		}

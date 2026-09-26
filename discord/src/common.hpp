@@ -1,5 +1,6 @@
 #include <discord-rpc.hpp>
 #include <fmt/format.h>
+#include <mutex>
 
 #include "version.h"
 
@@ -27,24 +28,45 @@ void discordSetup(std::string app_id) {
         });
 }
 
+// Discord rejects text shorter than 2 or longer than 128 bytes, so shorten it or leave it out
+std::string fitDiscordText(std::string text) {
+    if (text.size() < 2) return "";
+    if (text.size() > 128) {
+        size_t cut = 125;
+        while (cut > 0 && (text[cut] & 0xC0) == 0x80) cut--; // Don't split a UTF-8 character
+        text = text.substr(0, cut) + "...";
+    }
+    return text;
+}
+
 // Sets the Rich Presence
-void updatePresence(std::string repo, std::string game, std::string full, std::string nnid, int ctrls, std::string jpg, std::string img, time_t start) {
+void updatePresence(std::string repo, std::string game, std::string full, std::string nnid, int ctrls, std::string jpg, std::string img, time_t start, std::string details) {
     idle = false;
     auto& rpc = discord::RPCManager::get();
 
+    // The small image shows the network, and hovering it shows the account's ID
+    std::string network = img == "nn" ? "Nintendo Network" : "Pretendo Network";
+    std::string networkText = nnid == "" ? "Using " + network : (img == "nn" ? "NNID: " : "PNID: ") + nnid;
+
+    // The party count shows the connected controllers next to the game's own text, like "In the menus (1 of 4)".
+    // Discord only shows it alongside some text, so fall back to a label.
+    bool showParty = ctrls >= 0;
+    std::string state = fitDiscordText(details);
+    if (state == "" && showParty) state = "Controllers";
+
     rpc.getPresence()
-        .setName(game)
+        .setName("Wii U")
         .setActivityType(discord::ActivityType::Game)
-        .setStatusDisplayType(discord::StatusDisplayType::Name)
-        .setState(nnid != "" ? "NID: " + nnid : "")
-        .setDetails("Playing on the Wii U")
+        .setStatusDisplayType(discord::StatusDisplayType::Details) // "Playing <game>" in the member list
+        .setDetails(fitDiscordText(game))
+        .setState(state)
         .setStartTimestamp(start)
         .setLargeImageKey((jpg == "oh no it didn't work") ? "preview" : ("http://" + repo + "/icons/" + jpg))
-        .setLargeImageText(full)
+        .setLargeImageText(fitDiscordText(full))
         .setSmallImageKey(img == "backwards" ? "" : img)
-        .setSmallImageText(img == "nn" ? "Using Nintendo Network" : "Using Pretendo Network")
-        .setPartyID(ctrls > -2 ? "wiiu" : "")
-        .setPartySize(ctrls > -2 ? ctrls + 1 : 0)
+        .setSmallImageText(img == "backwards" ? "" : networkText)
+        .setPartyID(showParty ? "wiiu" : "")
+        .setPartySize(showParty ? ctrls + 1 : 0)
         .setPartyMax((ctrls + 1 > 4) ? 8 : 4)
         .setPartyPrivacy(discord::PartyPrivacy::Public)
         .setInstance(false)
@@ -78,7 +100,11 @@ void checkIdle() {
 	return;
 }
 
-short parseJsonAndUpdate(std::string msg, json images, std::string repo, time_t (*adjustEpochToUtc)(time_t, bool)) {
+short parseJsonAndUpdate(std::string msg, json images, std::string repo, time_t (*adjustEpochToUtc)(time_t, bool), std::string source) {
+    // Messages can arrive over UDP and HTTP at the same time
+    static std::mutex updateMutex;
+    std::lock_guard<std::mutex> lock(updateMutex);
+
     std::string image;
 
     try {
@@ -86,7 +112,7 @@ short parseJsonAndUpdate(std::string msg, json images, std::string repo, time_t 
 
         // Check if the sender is the Wii U
         if (out["sender"] == "Wii U") {
-            fmt::println("Received: {}", msg);
+            fmt::println("Received via {}: {}", source, msg);
             idle = false;
         }
         else {
@@ -101,14 +127,15 @@ short parseJsonAndUpdate(std::string msg, json images, std::string repo, time_t 
         }
         
         // Update presence, but also make sure it's backwards compatible
+        std::string details = out.value("details", "");
         if (out.contains("dst")) { // Update 2.1
-            updatePresence(repo, out["app"], out["long"], out["nnid"], out["ctrls"], image, out["img"], adjustEpochToUtc(out["time"], out["dst"] == 1));
+            updatePresence(repo, out["app"], out["long"], out["nnid"], out["ctrls"], image, out["img"], adjustEpochToUtc(out["time"], out["dst"] == 1), details);
         }
         else if (out.contains("img")) { // Update 2.0
-            updatePresence(repo, out["app"], out["long"], out["nnid"], out["ctrls"], image, out["img"], adjustEpochToUtc(out["time"], false));
+            updatePresence(repo, out["app"], out["long"], out["nnid"], out["ctrls"], image, out["img"], adjustEpochToUtc(out["time"], false), details);
         }
         else { // Update 1.9
-            updatePresence(repo, out["app"], out["long"], out["nnid"], out["ctrls"], image, "backwards", adjustEpochToUtc(out["time"], false));
+            updatePresence(repo, out["app"], out["long"], out["nnid"], out["ctrls"], image, "backwards", adjustEpochToUtc(out["time"], false), details);
         }
 
         // Check for updates

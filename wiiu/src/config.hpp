@@ -9,6 +9,7 @@
 #include <wups/config_api.h>
 
 #include "consts.hpp"
+#include "textitem.hpp"
 
 /**
  * A configuration option.
@@ -113,6 +114,18 @@ struct {
 
     ConfigOption<bool> cod = 
     ConfigOption<bool>("cod", true);
+
+    ConfigOption<bool> remote = 
+    ConfigOption<bool>("remote", false);
+
+    ConfigOption<std::string> server = 
+    ConfigOption<std::string>("server", "");
+
+    ConfigOption<std::string> secret =
+    ConfigOption<std::string>("secret", "");
+
+    ConfigOption<int> server_port =
+    ConfigOption<int>("serverport", 80);
 } config;
 
 /**
@@ -139,6 +152,10 @@ void boolItemChanged(ConfigItemBoolean *item, bool newValue) {
         config.cod.value = newValue;
     }
 
+    if (std::string_view(config.remote.id) == item->identifier) {
+        config.remote.value = newValue;
+    }
+
     // If the value has changed, we store it in the storage.
     WUPSStorageAPI::Store(item->identifier, newValue);
 }
@@ -152,6 +169,10 @@ void integerRangeItemChanged(ConfigItemIntegerRange *item, int newValue) {
         config.port.value = newValue;
     }
 
+    if (std::string_view(config.server_port.id) == item->identifier) {
+        config.server_port.value = newValue;
+    }
+
     // If the value has changed, we store it in the storage.
     WUPSStorageAPI::Store(item->identifier, newValue);
 }
@@ -159,6 +180,19 @@ void integerRangeItemChanged(ConfigItemIntegerRange *item, int newValue) {
 void ipAddressItemChanged(ConfigItemIPAddress *item, uint32_t newValue) {
     if (std::string_view(config.ip.id) == item->identifier) {
         config.ip.value = newValue;
+    }
+
+    // If the value has changed, we store it in the storage.
+    WUPSStorageAPI::Store(item->identifier, newValue);
+}
+
+void textItemChanged(ConfigItemText *item, const std::string &newValue) {
+    if (config.server.id == item->identifier) {
+        config.server.value = newValue;
+    }
+
+    if (config.secret.id == item->identifier) {
+        config.secret.value = newValue;
     }
 
     // If the value has changed, we store it in the storage.
@@ -308,6 +342,35 @@ WUPSConfigAPICallbackStatus ConfigMenuOpenedCallback(WUPSConfigCategoryHandle ro
                                                     boolItemChanged));
 
         /* 
+         * Remote Server Category
+        */
+        auto remoteCat = WUPSConfigCategory::Create("Remote Server");
+        remoteCat.add(WUPSConfigItemStub::Create("Send data over HTTP to a server, e.g. through a Cloudflare Tunnel."));
+        remoteCat.add(WUPSConfigItemStub::Create("Editing: Left/Right move the cursor, Up/Down change a character,"));
+        remoteCat.add(WUPSConfigItemStub::Create("X deletes a character, Y clears, A saves, B cancels."));
+
+        // Remote mode boolean
+        remoteCat.add(WUPSConfigItemBoolean::Create(config.remote.id, "Send data to a remote server",
+                                                   config.remote.def, config.remote.value,
+                                                   &boolItemChanged));
+
+        // Server domain/ip text
+        remoteCat.add(WUPSConfigItemText::Create(config.server.id, "Server domain or IP",
+                                                config.server.def, config.server.value,
+                                                &textItemChanged));
+
+        // Server port integer range
+        remoteCat.add(WUPSConfigItemIntegerRange::Create(config.server_port.id, "HTTP port (default 80)",
+                                                         config.server_port.def, config.server_port.value,
+                                                         1, 65535,
+                                                         &integerRangeItemChanged));
+
+        // Secret text, must match the computer application's --http-secret
+        remoteCat.add(WUPSConfigItemText::Create(config.secret.id, "Secret (must match --http-secret)",
+                                                config.secret.def, config.secret.value,
+                                                &textItemChanged));
+
+        /* 
          * Contribute Category
         */
         auto helpCat = WUPSConfigCategory::Create("Contribute");
@@ -322,6 +385,7 @@ WUPSConfigAPICallbackStatus ConfigMenuOpenedCallback(WUPSConfigCategoryHandle ro
         root.add(std::move(setupCat));
         root.add(std::move(displayCat));
         root.add(std::move(advCat));
+        root.add(std::move(remoteCat));
         root.add(std::move(helpCat));
 
         return WUPSCONFIG_API_CALLBACK_RESULT_SUCCESS;

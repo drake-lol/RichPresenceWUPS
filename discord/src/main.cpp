@@ -41,6 +41,9 @@
     }
 #else
     int main(int argc, char* argv[]) {
+        // Flush logs line by line, even when redirected to a file (e.g. as a service)
+        setvbuf(stdout, nullptr, _IOLBF, 0);
+
         coreLogic(cmdLineArgs(argc, argv));
         return 0;
     }

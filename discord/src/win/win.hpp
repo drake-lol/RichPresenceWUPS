@@ -126,7 +126,7 @@ bool bind(SOCKET &sock, uint16_t port = 5005) {
 }
 
 // Main loop
-void gameLoop(std::string repo, uint16_t port) {
+void gameLoop(std::string repo, json images, uint16_t port) {
     // Bind the socket
 	std::string msg;
     SOCKET sock;
@@ -138,7 +138,6 @@ void gameLoop(std::string repo, uint16_t port) {
     auto& rpc = discord::RPCManager::get();
 
     json out;
-    json images = getImageKeys(repo);
     std::string image;
     char buffer[1024];
 
@@ -156,7 +155,7 @@ void gameLoop(std::string repo, uint16_t port) {
         std::string msg = buffer;
 
         // Attempt to set Rich Presence
-        if (parseJsonAndUpdate(msg, images, repo, adjustEpochToUtc) < 0) {
+        if (parseJsonAndUpdate(msg, images, repo, adjustEpochToUtc, std::string("UDP from ") + inet_ntoa(sender.sin_addr)) < 0) {
             fmt::println("Failed to update Rich Presence");
         }
     } while (true);
