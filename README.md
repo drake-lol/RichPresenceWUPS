@@ -1,5 +1,19 @@
 # Wii U Rich Presence Plugin
 
+> [!IMPORTANT]
+> **This is a personal fork of [FlamingNineteen/RichPresenceWUPS](https://github.com/FlamingNineteen/RichPresenceWUPS), made for my own use.** The changes in this fork were written with AI ([Claude Code](https://claude.com/claude-code)). If you choose to use it, you do so at your own risk, and **please don't report problems with this fork to the original author**. They didn't write or review these changes.
+>
+> The original plugin only works when the Wii U and the computer running Discord are on the same local network. I made this fork so my Discord status works from anywhere, by sending updates over the internet to my own server through a Cloudflare Tunnel.
+>
+> **Changes in this fork:**
+> - **Remote server mode:** the plugin can send updates over HTTP to a domain or IP address set in its **Remote Server** settings, instead of broadcasting over UDP. This works through a Cloudflare Tunnel. Local UDP mode still works as before. See [Remote server](#remote-server-cloudflare-tunnel).
+> - **Text entry in the plugin settings:** type the server's domain and secret with the D-pad.
+> - **Signed updates:** each update is signed with a shared secret (HMAC-SHA256) and a timestamp, so the secret is never sent, and the computer application rejects unsigned, altered or replayed updates.
+> - **HTTP listener in the computer application and Python script:** new `--http-port`, `--http-bind` and `--http-secret` options. The log shows whether each update arrived over UDP or HTTP, and from where.
+> - **New Discord layout:** "Wii U" as the activity name, the game as the first line, the connected controllers as the party count, and your PNID/NNID when hovering the network icon. Your member list status still shows "Playing *game*".
+> - **Fixes:** the "Show network ID" setting now works, game titles with quotes no longer break updates, and logs are written line by line on macOS/Linux so they show up when running as a service.
+> - **Not working yet:** showing the game's friend list text (like "In the menus"). The code is included but disabled, because enabling it stopped the console from booting.
+
 This plugin uses UDP to communicate with an application on your computer to set Discord Rich Presence for the user. The activity is set based on the application currently being played, the time the application was loaded, the amount of controllers connected and more.
 
 ## Installation
