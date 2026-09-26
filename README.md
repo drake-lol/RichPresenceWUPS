@@ -1,7 +1,7 @@
 # Wii U Rich Presence Plugin
 
 > [!IMPORTANT]
-> **This is a personal fork of [FlamingNineteen/RichPresenceWUPS](https://github.com/FlamingNineteen/RichPresenceWUPS), made for my own use.** The changes in this fork were written with AI ([Claude Code](https://claude.com/claude-code)). If you choose to use it, you do so at your own risk, and **please don't report problems with this fork to the original author**. They didn't write or review these changes.
+> **This is a personal fork of [FlamingNineteen/RichPresenceWUPS](https://github.com/FlamingNineteen/RichPresenceWUPS), made for my own use.** The changes in this fork, including this notice and the rest of this README's additions, were written with AI ([Claude Code](https://claude.com/claude-code)). If you choose to use it, you do so at your own risk, and **please don't report problems with this fork to the original author**. They didn't write or review these changes.
 >
 > The original plugin only works when the Wii U and the computer running Discord are on the same local network. I made this fork so my Discord status works from anywhere, by sending updates over the internet to my own server through a Cloudflare Tunnel.
 >
